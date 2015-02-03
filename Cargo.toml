@@ -1,0 +1,35 @@
+[package]
+
+name = "fsnotify"
+version = "0.0.1"
+authors = ["Centril <twingoow@gmail.com>"]
+
+description = "Cross-platform filesystem notification library"
+homepage = "https://github.com/Lumenix/rust-fsnotify"
+repository = "https://github.com/Lumenix/rust-fsnotify"
+readme = "README.md"
+license = "ASL2.0"
+keywords = ["events", "filesystem", "notify", "watch",]
+
+##########################
+# Platform dependencies: #
+##########################
+
+# Linux, inotify:
+[target.x86_64-unknown-linux-gnu.dependencies]
+inotify = "0.1.3"
+[target.i686-unknown-linux-gnu.dependencies]
+inotify = "0.1.3"
+
+# Windows:
+[target.x86_64-pc-windows-gnu.dependencies]
+winapi = "0.1.8"
+[target.i686-pc-windows-gnu.dependencies]
+winapi = "0.1.8"
+
+# OSX, FSEvent:
+[target.x86_64-apple-darwin.dependencies]
+fsevent = "0.2.2"
+
+[target.i686-apple-darwin.dependencies]
+fsevent = "0.2.2"
