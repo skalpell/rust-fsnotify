@@ -5,6 +5,7 @@ use fsnotify::*;
 
 struct LinuxFsNotifier<'a> {
 	config: Configuration<'a>,
+	sender:	EventSender<'a>,
 }
 
 fsnotify_drop!( LinuxFsNotifier );

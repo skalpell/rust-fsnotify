@@ -6,6 +6,7 @@ use fsnotify::*;
 
 struct OsxFsNotifier<'a> {
 	config: Configuration<'a>,
+	sender:	EventSender<'a>,
 }
 
 fsnotify_drop!( OsxFsNotifier );

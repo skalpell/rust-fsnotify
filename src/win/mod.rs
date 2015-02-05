@@ -1,17 +1,17 @@
 extern crate winapi;
-extern crate "kernel32-sys" as kernel;
+extern crate "kernel32-sys" as win;
 
 use fsnotify::*;
 
 struct WinFsNotifier<'a> {
-	config: Configuration<'a>,
+	config:	Configuration<'a>,
+	sender:	EventSender<'a>,
 }
 
 fsnotify_drop!( WinFsNotifier );
 
 impl<'a> FsNotifier<'a> for WinFsNotifier<'a> {
-	fn new( sender: EventSender, config: Configuration<'a> ) -> NotifyResult<Self> {
-		not_implemented!();
+	fn new( sender: EventSender<'a>, config: Configuration<'a> ) -> NotifyResult<Self> {
 	}
 
 	fn add( &self, path: &Path ) -> R {
@@ -30,3 +30,11 @@ impl<'a> FsNotifier<'a> for WinFsNotifier<'a> {
 		not_implemented!();
 	}
 }
+
+/*
+fn a() {
+	unsafe {
+		ReadDirectoryChangesW();
+	}
+}
+*/
