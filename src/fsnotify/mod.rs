@@ -1,6 +1,7 @@
 use std::old_io as io;
 use std::sync::mpsc;
 
+use std::ops::Fn;
 use std::path::Path as StdPath;
 
 //================================================================================
@@ -15,7 +16,7 @@ pub type R = NotifyResult<()>;
 // Configuration:
 //================================================================================
 
-pub type RecursionFilter<'a> = Option<Fn( &Path ) -> bool + 'a>;
+pub type RecursionFilter<'a> = Option<&'a (Fn( &Path ) -> bool + 'a)>;
 pub type RecursionLimit = Option<usize>;
 pub struct Configuration<'a> {
 	subscribe: Operations,
