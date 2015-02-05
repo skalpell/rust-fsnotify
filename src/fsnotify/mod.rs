@@ -6,6 +6,7 @@ use std::path::Path as StdPath;
 //================================================================================
 // Misc typedefs:
 //================================================================================
+
 pub type Path = StdPath;
 pub type NotifyResult<T> = io::IoResult<T>;
 pub type R = NotifyResult<()>;
@@ -13,12 +14,14 @@ pub type R = NotifyResult<()>;
 //================================================================================
 // Configuration:
 //================================================================================
+
+pub type RecursionFilter<'a> = Option<Fn( &Path ) -> bool + 'a>;
 pub type RecursionLimit = Option<usize>;
 pub struct Configuration<'a> {
 	subscribe: Operations,
 	follow_symlinks: bool,
 	recursion_limit: RecursionLimit,
-	recursion_filter: Fn( &Path ) -> bool + 'a
+	recursion_filter: RecursionFilter<'a>,
 }
 
 //================================================================================
@@ -38,8 +41,9 @@ pub type EventSender = mpsc::Sender<Event>;
 //================================================================================
 // Notifier trait:
 //================================================================================
-pub trait FsNotifier : Drop {
-	fn new( sender: EventSender, config: Configuration ) -> NotifyResult<Self>;
+
+pub trait FsNotifier<'a> : Drop {
+	fn new( sender: EventSender, config: Configuration<'a> ) -> NotifyResult<Self>;
 
 	fn add( &self, path: &Path ) -> R;
 
