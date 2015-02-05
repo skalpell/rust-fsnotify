@@ -2,7 +2,7 @@ use std::old_io as io;
 use std::sync::mpsc;
 
 use std::ops::Fn;
-use std::path::Path as StdPath;
+use std::old_path::Path as StdPath;
 
 //================================================================================
 // Misc typedefs:
@@ -32,12 +32,12 @@ pub struct Configuration<'a> {
 mod operations;
 use self::operations::Operations;
 
-pub struct Event {
-	pub path: Option<Path>,
+pub struct Event<'a> {
+	pub path: Option<&'a Path>,
 	pub op: NotifyResult<Operations>,
 }
 
-pub type EventSender = mpsc::Sender<Event>;
+pub type EventSender<'a> = mpsc::Sender<Event<'a>>;
 
 //================================================================================
 // Notifier trait:
