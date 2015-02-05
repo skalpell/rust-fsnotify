@@ -11,12 +11,14 @@ pub type NotifyResult<T> = io::IoResult<T>;
 pub type R = NotifyResult<()>;
 
 //================================================================================
-// Recursion:
+// Configuration:
 //================================================================================
 pub type RecursionLimit = Option<usize>;
-pub struct RecursionConfig<'a> {
-	limit: RecursionLimit,
-	filter: Fn( &Path ) -> bool + 'a
+pub struct Configuration<'a> {
+	subscribe: Operations,
+	follow_symlinks: bool,
+	recursion_limit: RecursionLimit,
+	recursion_filter: Fn( &Path ) -> bool + 'a
 }
 
 //================================================================================
@@ -37,9 +39,9 @@ pub type EventSender = mpsc::Sender<Event>;
 // Notifier trait:
 //================================================================================
 pub trait FsNotifier : Drop {
-	fn new( sender: EventSender, recursion_limit: RecursionConfig, follow_symlinks: bool ) -> NotifyResult<Self>;
+	fn new( sender: EventSender, config: Configuration ) -> NotifyResult<Self>;
 
-	fn add( &self, path: &Path, subscribe: Operations ) -> R;
+	fn add( &self, path: &Path ) -> R;
 
 	fn remove( &self, path: &Path ) -> R;
 
