@@ -31,9 +31,11 @@ inotify = "0.1.3"
 
 # Windows:
 [target.x86_64-pc-windows-gnu.dependencies]
-winapi = "0.1.8"
+winapi = "*"
+kernel32-sys = "*"
 [target.i686-pc-windows-gnu.dependencies]
-winapi = "0.1.8"
+winapi = "*"
+kernel32-sys = "*"
 
 # OSX, FSEvent:
 [target.x86_64-apple-darwin.dependencies]
