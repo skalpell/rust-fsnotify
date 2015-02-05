@@ -1,15 +1,35 @@
-use std::old_io as io;
+use std::ops::Fn;
+use std::error::FromError;
 use std::sync::mpsc;
 
-use std::ops::Fn;
-use std::old_path::Path as StdPath;
+use std::path::Path as StdPath;
+
+// @todo, change to std::io once stable.
+use std::old_io as io;
+
+//================================================================================
+// Error:
+//================================================================================
+
+pub enum Error {
+	Io( io::IoError ),
+	NotifyError( String ),
+	PathNotFound,
+	NotImplemented,
+}
+
+impl FromError<io::IoError> for Error {
+	fn from_error( from: io::IoError ) -> Error {
+		Error::Io( from )
+	}
+}
 
 //================================================================================
 // Misc typedefs:
 //================================================================================
 
 pub type Path = StdPath;
-pub type NotifyResult<T> = io::IoResult<T>;
+pub type NotifyResult<T> = Result<T, Error>;
 pub type R = NotifyResult<()>;
 
 //================================================================================

@@ -8,8 +8,35 @@
 #![feature(hash)]
 #[macro_use] extern crate bitflags;
 
+//================================================================================
+// fsnotify interface:
+//================================================================================
+
 mod fsnotify;
 pub use self::fsnotify::*;
+
+//================================================================================
+// helper macros:
+//================================================================================
+
+macro_rules! not_implemented {
+	() => { return Err( Error::NotImplemented ) }
+}
+
+macro_rules! fsnotify_drop {
+	( $clazz:ident ) => {
+		#[unsafe_destructor]
+		impl<'a> Drop for $clazz<'a> {
+			fn drop( &mut self ) {
+				self.stop().ok().expect( "Failed to stop" );
+			}
+		}
+	}
+}
+
+//================================================================================
+// concrete platform implementations:
+//================================================================================
 
 #[cfg(target_os="linux")]
 pub mod linux;
