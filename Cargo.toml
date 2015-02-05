@@ -12,6 +12,14 @@ license = "ASL2.0"
 keywords = ["events", "filesystem", "notify", "watch",]
 
 ##########################
+# Normal dependencies: #
+##########################
+
+[dependencies]
+
+bitflags = "0.1"
+
+##########################
 # Platform dependencies: #
 ##########################
 
