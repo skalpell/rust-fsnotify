@@ -17,7 +17,7 @@ use std::old_io as io;
 pub enum Error {
 	Io( io::IoError ),
 	NotifyError( String ),
-	PathNotFound,
+	PathInvalid,
 	NotImplemented,
 }
 
@@ -133,7 +133,7 @@ pub trait FsNotifier<'a> : Drop {
 	 * The returned value is a the notifier, wrapped in a `NotifyResult`.
 	 * This is done because there might be I/O failures depending on the system.
 	 */
-	fn new( sender: EventSender, config: Configuration<'a> ) -> NotifyResult<Self>;
+	fn new( sender: EventSender<'a>, config: Configuration<'a> ) -> NotifyResult<Self>;
 
 	/**
 	 * Adds a path to track to the notifier.
