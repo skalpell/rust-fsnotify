@@ -82,6 +82,15 @@ pub struct Configuration<'a> {
 	recursion_filter: RecursionFilter<'a>,
 }
 
+impl<'a> Configuration<'a> {
+	pub fn is_recursive( &self ) -> bool {
+		match self.recursion_limit {
+			None => true,
+			Some( limit ) => limit > 0
+		}
+	}
+}
+
 //================================================================================
 // Events:
 //================================================================================
