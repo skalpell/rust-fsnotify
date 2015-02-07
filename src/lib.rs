@@ -36,7 +36,7 @@ macro_rules! fsnotify_drop {
 		#[unsafe_destructor]
 		impl<'a> Drop for $clazz<'a> {
 			fn drop( &mut self ) {
-				self.stop().ok().expect( "Failed to stop" );
+				self.close().ok().expect( "Failed to stop" );
 			}
 		}
 	}

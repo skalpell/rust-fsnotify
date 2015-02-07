@@ -141,9 +141,9 @@ pub trait FsNotifier<'a> : Drop {
 	 * The sender is an `EventSender` which the notifier will send events through.
 	 * The config: `Configuration` contains configuration information.
 	 *
-	 * This operation does no I/O operations and thus can't fail because of it.
+	 * This spawns a new thread that the notifier runs in.
 	 */
-	fn new( sender: EventSender<'a>, config: Configuration<'a> ) -> Self;
+	fn new( sender: EventSender<'a>, config: Configuration<'a> ) -> NotifyResult<Self>;
 
 	/**
 	 * Adds a path to track to the notifier.
@@ -151,7 +151,7 @@ pub trait FsNotifier<'a> : Drop {
 	 *
 	 * Returned is a `R`, that indicates either failure or success.
 	 */
-	fn add( &mut self, path: &Path ) -> R;
+	fn watch( &mut self, path: &Path ) -> R;
 
 	/**
 	 * Tells the notifier to stop tracking a path.
@@ -159,20 +159,12 @@ pub trait FsNotifier<'a> : Drop {
 	 *
 	 * Returned is a `R`, that indicates either failure or success.
 	 */
-	fn remove( &mut self, path: &Path ) -> R;
-
-	/**
-	 * Tells the notifier to start the tracking.
-	 * This operation is blocking, therefore it should be wrapped in a thread.
-	 *
-	 * Returned is a `R`, that indicates either failure or success.
-	 */
-	fn start( &mut self ) -> R;
+	fn unwatch( &mut self, path: &Path ) -> R;
 
 	/**
 	 * Tells the notifier to stop the tracking.
 	 *
 	 * Returned is a `R`, that indicates either failure or success.
 	 */
-	fn stop( &mut self ) -> R;
+	fn close( &mut self ) -> R;
 }
