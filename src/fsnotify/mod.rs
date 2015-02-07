@@ -68,18 +68,21 @@ pub type RecursionLimit = Option<usize>;
 /**
  * `Configuration` provides configuration for a `FsNotifier`.
  *
- * It configures what operations to subcribe to if applicable for the platform.
- * This lets you avoid tracking events of no interest.
- *
- * It also configures if symlinks should be followed or not (`follow_symlinks`).
- *
- * Lastly, it configures the `RecursionLimit`, and `RecursionFilter`.
+ * The following configurations are available:
+ * + `subscribe`: the operations to subcribe to if applicable for the platform.
+ *    	This lets you avoid tracking events of no interest.
+ * + `follow_symlinks`: should symlinks be followed?
+ * + `auto_manage`: if a file is after calling `start()` which is not
+ * 		explicitly tracked (i.e when recursion is enabled), should it be tracked?
+ * + `recursion_limit`: see `RecursionLimit`.
+ * + `recursion_filter`: see `RecursionFilter`.
  */
 pub struct Configuration<'a> {
-	subscribe: Operations,
-	follow_symlinks: bool,
-	recursion_limit: RecursionLimit,
-	recursion_filter: RecursionFilter<'a>,
+	subscribe:			Operations,
+	follow_symlinks:	bool,
+	auto_manage:		bool,
+	recursion_limit:	RecursionLimit,
+	recursion_filter:	RecursionFilter<'a>,
 }
 
 impl<'a> Configuration<'a> {
@@ -127,34 +130,34 @@ pub type EventSender<'a> = mpsc::Sender<Event<'a>>;
  * 	+ `.stop()`
  *
  * As this trait deals with I/O interaction with the operating system, things can fail.
- * Thus, all methods return a `NotifyResult<T> = Result<T, Error>`.
- * All methods but the first, `.new(...)` return `R = NotifyResult<()>`,
- * indicating either success or failure of the operation.
+ * Thus, all methods return a `R = Result<(), Error>` indicating either success or failure.
+ *
+ * The
  */
 pub trait FsNotifier<'a> : Drop {
 	/**
 	 * Constructs a `FsNotifier`.
 	 *
 	 * The sender is an `EventSender` which the notifier will send events through.
-	 * The config: `Configuration` contains information about how to handle recursion,
-	 * symlinks and what file system operations that should be tracked.
+	 * The config: `Configuration` contains configuration information.
 	 *
-	 * The returned value is a the notifier, wrapped in a `NotifyResult`.
-	 * This is done because there might be I/O failures depending on the system.
+	 * This operation does no I/O operations and thus can't fail because of it.
 	 */
-	fn new( sender: EventSender<'a>, config: Configuration<'a> ) -> NotifyResult<Self>;
+	fn new( sender: EventSender<'a>, config: Configuration<'a> ) -> Self;
 
 	/**
 	 * Adds a path to track to the notifier.
+	 * This can be done after calling `start()`.
 	 *
-	 * Returned is a Result<()>, that indicates either failure or success.
+	 * Returned is a `R`, that indicates either failure or success.
 	 */
 	fn add( &self, path: &Path ) -> R;
 
 	/**
 	 * Tells the notifier to stop tracking a path.
+	 * This can be done after calling `start()`.
 	 *
-	 * Returned is a Result<()>, that indicates either failure or success.
+	 * Returned is a `R`, that indicates either failure or success.
 	 */
 	fn remove( &self, path: &Path ) -> R;
 
@@ -162,14 +165,14 @@ pub trait FsNotifier<'a> : Drop {
 	 * Tells the notifier to start the tracking.
 	 * This operation is blocking, therefore it should be wrapped in a thread.
 	 *
-	 * Returned is a Result<()>, that indicates either failure or success.
+	 * Returned is a `R`, that indicates either failure or success.
 	 */
 	fn start( &self ) -> R;
 
 	/**
 	 * Tells the notifier to stop the tracking.
 	 *
-	 * Returned is a Result<()>, that indicates either failure or success.
+	 * Returned is a `R`, that indicates either failure or success.
 	 */
 	fn stop( &self ) -> R;
 }
