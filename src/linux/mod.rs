@@ -11,8 +11,11 @@ struct LinuxFsNotifier<'a> {
 fsnotify_drop!( LinuxFsNotifier );
 
 impl<'a> FsNotifier<'a> for LinuxFsNotifier<'a> {
-	fn new( sender: EventSender, config: Configuration<'a> ) -> NotifyResult<Self> {
-		not_implemented!();
+	fn new( sender: EventSender, config: Configuration<'a> ) -> Self {
+		return LinuxFsNotifier {
+			config: config,
+			sender: sender,
+		}
 	}
 
 	fn add( &self, path: &Path ) -> R {
