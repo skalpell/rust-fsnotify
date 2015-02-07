@@ -1,8 +1,16 @@
 #![crate_type = "lib"]
 #![crate_name = "fsnotify"]
 
+// @TODO remove!
+#![allow(dead_code, unused_imports, unused_variables)]
+
+#![feature(io, path)]
+
 // https://github.com/rust-lang/rust/issues/17858
 #![feature(unsafe_destructor)]
+
+// Required by windows encode_wide().
+#![feature(std_misc)]
 
 // Required by operations.rs
 #![feature(hash)]
@@ -14,9 +22,6 @@
 
 mod fsnotify;
 pub use self::fsnotify::*;
-
-mod ffi;
-use self::ffi::*;
 
 //================================================================================
 // helper macros:
