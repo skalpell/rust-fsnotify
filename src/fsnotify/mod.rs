@@ -4,7 +4,7 @@ use std::sync::mpsc;
 
 use std::path::Path as StdPath;
 
-// @todo, change to std::io once stable.
+// @TODO, change to std::io once stable.
 use std::old_io as io;
 
 //================================================================================
@@ -151,7 +151,7 @@ pub trait FsNotifier<'a> : Drop {
 	 *
 	 * Returned is a `R`, that indicates either failure or success.
 	 */
-	fn add( &self, path: &Path ) -> R;
+	fn add( &mut self, path: &Path ) -> R;
 
 	/**
 	 * Tells the notifier to stop tracking a path.
@@ -159,7 +159,7 @@ pub trait FsNotifier<'a> : Drop {
 	 *
 	 * Returned is a `R`, that indicates either failure or success.
 	 */
-	fn remove( &self, path: &Path ) -> R;
+	fn remove( &mut self, path: &Path ) -> R;
 
 	/**
 	 * Tells the notifier to start the tracking.
@@ -167,12 +167,12 @@ pub trait FsNotifier<'a> : Drop {
 	 *
 	 * Returned is a `R`, that indicates either failure or success.
 	 */
-	fn start( &self ) -> R;
+	fn start( &mut self ) -> R;
 
 	/**
 	 * Tells the notifier to stop the tracking.
 	 *
 	 * Returned is a `R`, that indicates either failure or success.
 	 */
-	fn stop( &self ) -> R;
+	fn stop( &mut self ) -> R;
 }

@@ -18,19 +18,19 @@ impl<'a> FsNotifier<'a> for LinuxFsNotifier<'a> {
 		}
 	}
 
-	fn add( &self, path: &Path ) -> R {
+	fn add( &mut self, path: &Path ) -> R {
 		not_implemented!();
 	}
 
-	fn remove( &self, path: &Path ) -> R {
+	fn remove( &mut self, path: &Path ) -> R {
 		not_implemented!();
 	}
 
-	fn start( &self ) -> R {
+	fn start( &mut self ) -> R {
 		not_implemented!();
 	}
 
-	fn stop( &self ) -> R {
+	fn stop( &mut self ) -> R {
 		not_implemented!();
 	}
 }

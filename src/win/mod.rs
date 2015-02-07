@@ -13,6 +13,7 @@ extern crate "kernel32-sys" as win;
  */
 
 use std::collections::HashMap;
+use std::path::PathBuf;
 
 use fsnotify::*;
 
@@ -39,7 +40,7 @@ struct WinFsNotifier<'a> {
 
 	started: bool,
 	// add(...) adds into this "queue".
-	add_queue: Vec<&'a Path>,
+	add_queue: Vec<PathBuf>,
 
 	// Handle to completion port:
 	//port:	HANDLE,
@@ -61,31 +62,33 @@ impl<'a> FsNotifier<'a> for WinFsNotifier<'a> {
 		}
 	}
 
-	fn add( &self, path: &Path ) -> R {
+	fn add( &mut self, path: &Path ) -> R {
 		if self.started {
+			/*
 			// Convert path.
 			let cpath: LPCWSTR = path_to_lpcwstr( path );
 
 			// Are we using recursion?
 			let recurse = self.config.is_recursive() as BOOL;
+			*/
 		} else {
 			// Add to queue, handle in start().
-			self.add_queue.push( path.clone() );
+			self.add_queue.push( path.to_path_buf() );
 		}
 
 		not_implemented!();
 	}
 
-	fn remove( &self, path: &Path ) -> R {
+	fn remove( &mut self, path: &Path ) -> R {
 		not_implemented!();
 	}
 
-	fn start( &self ) -> R {
+	fn start( &mut self ) -> R {
 		let port = win_guard_handle!( create_io_completion_port( INVALID_HANDLE_VALUE, 0 as HANDLE ) );
 		not_implemented!();
 	}
 
-	fn stop( &self ) -> R {
+	fn stop( &mut self ) -> R {
 		not_implemented!();
 	}
 }
