@@ -12,11 +12,11 @@ struct OsxFsNotifier<'a> {
 fsnotify_drop!( OsxFsNotifier );
 
 impl<'a> FsNotifier<'a> for OsxFsNotifier<'a> {
-	fn new( sender: EventSender, config: Configuration<'a> ) -> Self {
-		return OsxFsNotifier {
+	fn new( sender: EventSender, config: Configuration<'a> ) -> NotifyResult<Self> {
+		Ok( OsxFsNotifier {
 			config: config,
 			sender: sender,
-		}
+		} )
 	}
 
 	fn add( &mut self, path: &Path ) -> R {
@@ -24,10 +24,6 @@ impl<'a> FsNotifier<'a> for OsxFsNotifier<'a> {
 	}
 
 	fn remove( &mut self, path: &Path ) -> R {
-		not_implemented!();
-	}
-
-	fn start( &mut self ) -> R {
 		not_implemented!();
 	}
 
