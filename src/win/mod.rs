@@ -33,10 +33,19 @@ struct WinFsNotifier<'a> {
 
 	// Handle to completion port:
 	port:	HANDLE,
-	add_queue: Vec<PathBuf>,
+	queue:	Arc<RwLock<Vec<Instruction>>>,
 }
 
 fsnotify_drop!( WinFsNotifier );
+
+enum InsType {
+    ADD, REMOVE
+}
+
+struct Instruction {
+    instruction: InsType,
+    path: PathBuf,
+}
 
 impl<'a> WinFsNotifier<'a> {
 	fn run( &mut self ) {
@@ -57,7 +66,7 @@ impl<'a> FsNotifier<'a> for WinFsNotifier<'a> {
 			port:	port,
 		//	paths:	Arc::new( RwLock::new( HashMap::new() ) ),
 
-			add_queue: vec![],
+			queue:	Arc::new( RwLock::new( vec![] ) ),
 		} )
 	}
 
@@ -65,7 +74,7 @@ impl<'a> FsNotifier<'a> for WinFsNotifier<'a> {
 		// Are we using recursion?
 		//let recurse = self.config.is_recursive() as BOOL;
 		// Add to queue, handle in start().
-		self.add_queue.push( path.to_path_buf() );
+	//	self.add_queue.push( path.to_path_buf() );
 
 		not_implemented!();
 	}
