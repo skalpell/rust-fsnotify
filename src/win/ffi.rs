@@ -46,17 +46,16 @@ use fsnotify::*;
 /**
  * Takes the last error and produces an Error:Io (R) from it.
  */
-pub unsafe fn last_error<T>() -> NotifyResult<T> {
+pub fn last_error<T>() -> NotifyResult<T> {
 	Err( FromError::from_error( io::Error::last_os_error() ) )
 }
 
 macro_rules! win_guard {
 	( $call:expr ) => {
 		{
-			unsafe {
-				let a = $call;
-				if a == INVALID_HANDLE_VALUE { last_error() } else { Ok( a ) }
-			}
+			let a = unsafe { $call };
+			if a  == INVALID_HANDLE_VALUE { last_error() }
+			else { Ok( a ) }
 		};
 	}
 }
