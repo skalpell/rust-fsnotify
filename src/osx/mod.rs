@@ -4,9 +4,9 @@ use fsevent;
 
 use fsnotify::*;
 
-struct OsxFsNotifier<'a> {
+pub struct OsxFsNotifier<'a> {
 	config: Configuration<'a>,
-	sender:	EventSender<'a>,
+	sender:	EventSender,
 }
 
 fsnotify_drop!( OsxFsNotifier );

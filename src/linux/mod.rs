@@ -3,9 +3,9 @@ use INotify;
 
 use fsnotify::*;
 
-struct LinuxFsNotifier<'a> {
+pub struct LinuxFsNotifier<'a> {
 	config: Configuration<'a>,
-	sender:	EventSender<'a>,
+	sender:	EventSender,
 }
 
 fsnotify_drop!( LinuxFsNotifier );

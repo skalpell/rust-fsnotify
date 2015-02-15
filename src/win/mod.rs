@@ -14,29 +14,32 @@ extern crate "kernel32-sys" as win;
 
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::RwLock;
-use std::sync::Arc;
-use std::marker::Send;
+use std::sync::{Arc, RwLock};
+use std::thread::Thread;
+//use std::marker::Send;
 
 use fsnotify::*;
 
 mod ffi;
 use self::ffi::*;
 
-struct WinFsNotifier<'a> {
+pub struct WinFsNotifier<'a> {
 	config:	Configuration<'a>,
-	sender:	EventSender<'a>,
+	sender:	EventSender,
 
-	// Indicates if the notifier is open or not, setting it to false closes it.
+	// Indicates if the notifier is open or not, setting it to false closes it:
 	open: Arc<RwLock<bool>>,
-//	paths:	Arc<RwLock<HashMap<HANDLE, PathBuf>>>,
+
+	// Add and remove operations queue:
+	queue:	Arc<RwLock<Vec<Instruction>>>,
 
 	// Handle to completion port:
 	port:	HANDLE,
-	queue:	Arc<RwLock<Vec<Instruction>>>,
+
+//	paths:	Arc<RwLock<HashMap<HANDLE, PathBuf>>>,
 }
 
-fsnotify_drop!( WinFsNotifier );
+fsn_drop!(	WinFsNotifier );
 
 enum InsType {
     ADD, REMOVE
@@ -49,16 +52,34 @@ struct Instruction {
 
 impl<'a> WinFsNotifier<'a> {
 	fn run( &mut self ) {
+		// Clone stuff.
+		let (open, tx) = (
+			self.open.clone(),
+			self.sender.clone()
+		);
 
+		// Run notifier in thread.
+		Thread::spawn( move || {
+			loop {
+				if !(*open.read().unwrap()) {
+					break
+				}
+
+				// Are we using recursion?
+				//let recurse = self.config.is_recursive() as BOOL;
+			}
+		} );
 	}
 }
 
 impl<'a> FsNotifier<'a> for WinFsNotifier<'a> {
-	fn new( sender: EventSender<'a>, config: Configuration<'a> ) -> NotifyResult<Self> {
+	fsn_close!();
+
+	fn new( sender: EventSender, config: Configuration<'a> ) -> NotifyResult<Self> {
 		// Retrieve IOCP.
 		let port = try!( create_io_completion_port( INVALID_HANDLE_VALUE, 0 as HANDLE ) );
 
-		Ok( WinFsNotifier {
+		fsn_run!( WinFsNotifier {
 			config: config,
 			sender: sender,
 
@@ -70,20 +91,14 @@ impl<'a> FsNotifier<'a> for WinFsNotifier<'a> {
 		} )
 	}
 
-	fn watch( &mut self, path: &Path ) -> R {
-		// Are we using recursion?
-		//let recurse = self.config.is_recursive() as BOOL;
+	fn watch( &mut self, path: FilePath ) -> R {
 		// Add to queue, handle in start().
 	//	self.add_queue.push( path.to_path_buf() );
 
 		not_implemented!();
 	}
 
-	fn unwatch( &mut self, path: &Path ) -> R {
-		not_implemented!();
-	}
-
-	fn close( &mut self ) -> R {
+	fn unwatch( &mut self, path: FilePath ) -> R {
 		not_implemented!();
 	}
 }

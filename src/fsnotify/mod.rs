@@ -1,8 +1,16 @@
-use std::ops::Fn;
+use std::default::Default;
 use std::error::FromError;
-use std::sync::mpsc;
-
-use std::path::Path as StdPath;
+use std::ops::Fn;
+use std::sync::{
+	mpsc,
+	PoisonError,
+	RwLockReadGuard,
+	RwLockWriteGuard,
+};
+use std::path::{
+	Path,
+	PathBuf,
+};
 
 // @TODO, change to std::io once stable.
 use std::old_io as io;
@@ -15,15 +23,29 @@ use std::old_io as io;
  * `Error` contains all the possible errors for `fsnotify`.
  */
 pub enum Error {
-	Io( io::IoError ),
 	NotifyError( String ),
+	Io( io::IoError ),
+	LockWriteError,
+	LockReadError,
 	PathInvalid,
 	NotImplemented,
 }
 
-impl FromError<io::IoError> for Error {
+impl<> FromError<io::IoError> for Error {
 	fn from_error( from: io::IoError ) -> Error {
 		Error::Io( from )
+	}
+}
+
+impl<'a, T> FromError<PoisonError<RwLockReadGuard<'a, T>>> for Error {
+	fn from_error( from: PoisonError<RwLockReadGuard<T>> ) -> Error {
+		Error::LockWriteError
+	}
+}
+
+impl<'a, T> FromError<PoisonError<RwLockWriteGuard<'a, T>>> for Error {
+	fn from_error( from: PoisonError<RwLockWriteGuard<T>> ) -> Error {
+		Error::LockWriteError
 	}
 }
 
@@ -31,7 +53,7 @@ impl FromError<io::IoError> for Error {
 // Misc typedefs:
 //================================================================================
 
-pub type Path = StdPath;
+pub type FilePath<'a> = &'a Path;
 
 /**
  * The `Result` of an operation, with either `T` (success), `Error` (failure).
@@ -54,7 +76,7 @@ pub type R = NotifyResult<()>;
  *
  * If the value returned is true, it will subscribe, otherwise, it will not.
  */
-pub type RecursionFilter<'a> = Option<&'a (Fn( &Path ) -> bool + 'a)>;
+pub type RecursionFilter<'a> = Option<&'a (Fn( FilePath ) -> bool + 'a)>;
 
 /**
  * `RecursionLimit` denoted what the maximum recursion depth is starting
@@ -71,16 +93,17 @@ pub type RecursionLimit = Option<usize>;
  * The following configurations are available:
  * + `subscribe`: the operations to subcribe to if applicable for the platform.
  *    	This lets you avoid tracking events of no interest.
+ *    	Default is to subscribe to everything.
  * + `follow_symlinks`: should symlinks be followed?
- * + `auto_manage`: if a file is after calling `start()` which is not
- * 		explicitly tracked (i.e when recursion is enabled), should it be tracked?
+ * 		Default is yes.
  * + `recursion_limit`: see `RecursionLimit`.
+ * 		Default is 0.
  * + `recursion_filter`: see `RecursionFilter`.
+ * 		Default is to not filter anything.
  */
 pub struct Configuration<'a> {
 	subscribe:			Operations,
 	follow_symlinks:	bool,
-	auto_manage:		bool,
 	recursion_limit:	RecursionLimit,
 	recursion_filter:	RecursionFilter<'a>,
 }
@@ -90,6 +113,17 @@ impl<'a> Configuration<'a> {
 		match self.recursion_limit {
 			None => true,
 			Some( limit ) => limit > 0
+		}
+	}
+}
+
+impl<'a> Default for Configuration<'a> {
+	fn default() -> Configuration<'a> {
+		Configuration {
+			subscribe:			Operations::all(),
+			follow_symlinks:	true,
+			recursion_limit:	Some( 0 ),
+			recursion_filter:	None,
 		}
 	}
 }
@@ -105,15 +139,15 @@ use self::operations::Operations;
  * Event:s are passed to the `EventSender`.
  * It has information about the path that the operations that happened on it.
  */
-pub struct Event<'a> {
-	pub path: Option<&'a Path>,
+pub struct Event {
+	pub path: Option<PathBuf>,
 	pub op: NotifyResult<Operations>,
 }
 
 /**
  * `EventSender`, a `Sender` for an `Event`.
  */
-pub type EventSender<'a> = mpsc::Sender<Event<'a>>;
+pub type EventSender = mpsc::Sender<Event>;
 
 //================================================================================
 // Notifier trait:
@@ -131,8 +165,6 @@ pub type EventSender<'a> = mpsc::Sender<Event<'a>>;
  *
  * As this trait deals with I/O interaction with the operating system, things can fail.
  * Thus, all methods return a `R = Result<(), Error>` indicating either success or failure.
- *
- * The
  */
 pub trait FsNotifier<'a> : Drop {
 	/**
@@ -143,7 +175,7 @@ pub trait FsNotifier<'a> : Drop {
 	 *
 	 * This spawns a new thread that the notifier runs in.
 	 */
-	fn new( sender: EventSender<'a>, config: Configuration<'a> ) -> NotifyResult<Self>;
+	fn new( sender: EventSender, config: Configuration<'a> ) -> NotifyResult<Self>;
 
 	/**
 	 * Adds a path to track to the notifier.
@@ -151,7 +183,7 @@ pub trait FsNotifier<'a> : Drop {
 	 *
 	 * Returned is a `R`, that indicates either failure or success.
 	 */
-	fn watch( &mut self, path: &Path ) -> R;
+	fn watch( &mut self, path: FilePath ) -> R;
 
 	/**
 	 * Tells the notifier to stop tracking a path.
@@ -159,7 +191,7 @@ pub trait FsNotifier<'a> : Drop {
 	 *
 	 * Returned is a `R`, that indicates either failure or success.
 	 */
-	fn unwatch( &mut self, path: &Path ) -> R;
+	fn unwatch( &mut self, path: FilePath ) -> R;
 
 	/**
 	 * Tells the notifier to stop the tracking.
