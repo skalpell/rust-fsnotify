@@ -1,6 +1,8 @@
 extern crate inotify;
 use INotify;
 
+use std::path::{AsPath, Path, PathBuf};
+
 use fsnotify::*;
 
 pub struct LinuxFsNotifier<'a> {
@@ -18,11 +20,11 @@ impl<'a> FsNotifier<'a> for LinuxFsNotifier<'a> {
 		} )
 	}
 
-	fn add( &mut self, path: &Path ) -> R {
+	fn add( &mut self, path: &AsPath ) -> R {
 		not_implemented!();
 	}
 
-	fn remove( &mut self, path: &Path ) -> R {
+	fn remove( &mut self, path: &AsPath ) -> R {
 		not_implemented!();
 	}
 

@@ -1,19 +1,17 @@
 use std::default::Default;
 use std::error::FromError;
 use std::ops::Fn;
+use std::io;
+use std::path::{
+	PathBuf,
+	AsPath,
+};
 use std::sync::{
 	mpsc,
 	PoisonError,
 	RwLockReadGuard,
 	RwLockWriteGuard,
 };
-use std::path::{
-	Path,
-	PathBuf,
-};
-
-// @TODO, change to std::io once stable.
-use std::old_io as io;
 
 //================================================================================
 // Error:
@@ -24,15 +22,15 @@ use std::old_io as io;
  */
 pub enum Error {
 	NotifyError( String ),
-	Io( io::IoError ),
+	Io( io::Error ),
 	LockWriteError,
 	LockReadError,
 	PathInvalid,
 	NotImplemented,
 }
 
-impl<> FromError<io::IoError> for Error {
-	fn from_error( from: io::IoError ) -> Error {
+impl<> FromError<io::Error> for Error {
+	fn from_error( from: io::Error ) -> Error {
 		Error::Io( from )
 	}
 }
@@ -52,8 +50,6 @@ impl<'a, T> FromError<PoisonError<RwLockWriteGuard<'a, T>>> for Error {
 //================================================================================
 // Misc typedefs:
 //================================================================================
-
-pub type FilePath<'a> = &'a Path;
 
 /**
  * The `Result` of an operation, with either `T` (success), `Error` (failure).
@@ -76,7 +72,7 @@ pub type R = NotifyResult<()>;
  *
  * If the value returned is true, it will subscribe, otherwise, it will not.
  */
-pub type RecursionFilter<'a> = Option<&'a (Fn( FilePath ) -> bool + 'a)>;
+pub type RecursionFilter<'a> = Option<&'a (Fn( &AsPath ) -> bool + 'a)>;
 
 /**
  * `RecursionLimit` denoted what the maximum recursion depth is starting
@@ -158,13 +154,14 @@ pub type EventSender = mpsc::Sender<Event>;
  * subscribing to file system change events.
  *
  * It provides 4 basic operations:
- * 	+ `.add( &Path )`
- * 	+ `.remove( &Path )`
- * 	+ `.start()`
- * 	+ `.stop()`
+ *  + `::new()`
+ * 	+ `.watch( &AsPath )`
+ * 	+ `.unwatch( &AsPath )`
+ * 	+ `.close()`
  *
  * As this trait deals with I/O interaction with the operating system, things can fail.
- * Thus, all methods return a `R = Result<(), Error>` indicating either success or failure.
+ * Thus, all methods except for `FsNotifier::new` return a `R = Result<(), Error>`
+ * indicating either success or failure.
  */
 pub trait FsNotifier<'a> : Drop {
 	/**
@@ -183,7 +180,7 @@ pub trait FsNotifier<'a> : Drop {
 	 *
 	 * Returned is a `R`, that indicates either failure or success.
 	 */
-	fn watch( &mut self, path: FilePath ) -> R;
+	fn watch( &mut self, path: &AsPath ) -> R;
 
 	/**
 	 * Tells the notifier to stop tracking a path.
@@ -191,7 +188,7 @@ pub trait FsNotifier<'a> : Drop {
 	 *
 	 * Returned is a `R`, that indicates either failure or success.
 	 */
-	fn unwatch( &mut self, path: FilePath ) -> R;
+	fn unwatch( &mut self, path: &AsPath ) -> R;
 
 	/**
 	 * Tells the notifier to stop the tracking.

@@ -2,6 +2,8 @@ extern crate fsevent;
 extern crate "fsevent-sys" as fsvent_fys;
 use fsevent;
 
+use std::path::{AsPath, Path, PathBuf};
+
 use fsnotify::*;
 
 pub struct OsxFsNotifier<'a> {
@@ -19,11 +21,11 @@ impl<'a> FsNotifier<'a> for OsxFsNotifier<'a> {
 		} )
 	}
 
-	fn add( &mut self, path: &Path ) -> R {
+	fn add( &mut self, path: &AsPath ) -> R {
 		not_implemented!();
 	}
 
-	fn remove( &mut self, path: &Path ) -> R {
+	fn remove( &mut self, path: &AsPath ) -> R {
 		not_implemented!();
 	}
 

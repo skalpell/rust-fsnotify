@@ -13,7 +13,7 @@ extern crate "kernel32-sys" as win;
  */
 
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{AsPath, Path, PathBuf};
 use std::sync::{Arc, RwLock};
 use std::thread::Thread;
 //use std::marker::Send;
@@ -91,14 +91,14 @@ impl<'a> FsNotifier<'a> for WinFsNotifier<'a> {
 		} )
 	}
 
-	fn watch( &mut self, path: FilePath ) -> R {
+	fn watch( &mut self, path: &AsPath ) -> R {
 		// Add to queue, handle in start().
 	//	self.add_queue.push( path.to_path_buf() );
 
 		not_implemented!();
 	}
 
-	fn unwatch( &mut self, path: FilePath ) -> R {
+	fn unwatch( &mut self, path: &AsPath ) -> R {
 		not_implemented!();
 	}
 }

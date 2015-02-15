@@ -23,14 +23,10 @@ use self::winapi::{
 	FILE_SHARE_WRITE,
 	FILE_SHARE_DELETE,
 	// file attributes
-//	FILE_FLAG_BACKUP_SEMANTICS,
-//	FILE_FLAG_OVERLAPPED,
+	FILE_FLAG_BACKUP_SEMANTICS,
+	FILE_FLAG_OVERLAPPED,
 	/* end: CreateFile */
 };
-
-// @TODO remove once in winapi.
-const FILE_FLAG_BACKUP_SEMANTICS: DWORD	= 0x02000000;
-const FILE_FLAG_OVERLAPPED: DWORD		= 0x40000000;
 
 // All functions used in winapi/kernel32.
 use self::kernel32::{
@@ -41,8 +37,8 @@ use self::kernel32::{
 
 use std::ffi::AsOsStr;
 use std::os::windows::OsStrExt;
-// @todo, change to std::io once stable.
-use std::old_io as io;
+
+use std::io;
 use std::error::FromError;
 
 use fsnotify::*;
@@ -51,7 +47,7 @@ use fsnotify::*;
  * Takes the last error and produces an Error:Io (R) from it.
  */
 pub unsafe fn last_error<T>() -> NotifyResult<T> {
-	Err( Error::Io( io::IoError::from_errno( GetLastError() as usize, true ) ) )
+	Err( FromError::from_error( io::Error::last_os_error() ) )
 }
 
 macro_rules! win_guard {
