@@ -2,6 +2,7 @@ use std::default::Default;
 use std::error::FromError;
 use std::ops::Fn;
 use std::io;
+use std::any::Any;
 use std::path::{
 	PathBuf,
 	AsPath,
@@ -21,29 +22,44 @@ use std::sync::{
  * `Error` contains all the possible errors for `fsnotify`.
  */
 pub enum Error {
-	NotifyError( String ),
+	Notify( String ),
 	Io( io::Error ),
-	LockWriteError,
-	LockReadError,
+	Sending,
+	Closed,
+	LockWrite,
+	LockRead,
+	ThreadPanic,
 	PathInvalid,
 	NotImplemented,
 }
 
-impl<> FromError<io::Error> for Error {
+impl FromError<io::Error> for Error {
 	fn from_error( from: io::Error ) -> Error {
 		Error::Io( from )
 	}
 }
 
+impl<T> FromError<mpsc::SendError<T>> for Error {
+	fn from_error( from: mpsc::SendError<T> ) -> Error {
+		Error::Sending
+	}
+}
+
+impl<> FromError<Box<Any + Send>> for Error {
+	fn from_error( from: Box<Any + Send> ) -> Error {
+		Error::ThreadPanic
+	}
+}
+
 impl<'a, T> FromError<PoisonError<RwLockReadGuard<'a, T>>> for Error {
 	fn from_error( from: PoisonError<RwLockReadGuard<T>> ) -> Error {
-		Error::LockWriteError
+		Error::LockRead
 	}
 }
 
 impl<'a, T> FromError<PoisonError<RwLockWriteGuard<'a, T>>> for Error {
 	fn from_error( from: PoisonError<RwLockWriteGuard<T>> ) -> Error {
-		Error::LockWriteError
+		Error::LockWrite
 	}
 }
 
@@ -72,7 +88,9 @@ pub type R = NotifyResult<()>;
  *
  * If the value returned is true, it will subscribe, otherwise, it will not.
  */
-pub type RecursionFilter<'a> = Option<&'a (Fn( &AsPath ) -> bool + 'a)>;
+type RF<'a> = Fn( &AsPath ) -> bool + 'a;
+pub type RecursionFilter<'a> = Option<&'a (RF<'a>)>;
+//unsafe impl<'a> Send for RecursionFilter<'a> {}
 
 /**
  * `RecursionLimit` denoted what the maximum recursion depth is starting
@@ -196,4 +214,11 @@ pub trait FsNotifier<'a> : Drop {
 	 * Returned is a `R`, that indicates either failure or success.
 	 */
 	fn close( &mut self ) -> R;
+
+	/**
+	 * Indicates whether or not the notifier is `closed` or if it is `running`.
+	 *
+	 * `true` if it is closed.
+	 */
+	fn is_closed( &self ) -> NotifyResult<bool>;
 }
