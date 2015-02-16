@@ -9,16 +9,19 @@
 // Required by windows encode_wide().
 #![feature(std_misc)]
 
+// for Send, RFC 458:
+#![feature(core)]
+
 // Required by operations.rs
 #![feature(hash)]
 #[macro_use] extern crate bitflags;
 
 //================================================================================
-// helper macros:
+// helpers and macros:
 //================================================================================
 
 #[macro_use]
-mod macros;
+mod helpers;
 
 //================================================================================
 // fsnotify interface:

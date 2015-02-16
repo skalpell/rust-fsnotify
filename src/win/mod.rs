@@ -12,14 +12,15 @@ extern crate "kernel32-sys" as win;
  * FindFirstChangeNotification API is **NOT** used.
  */
 
-use std::collections::HashMap;
 use std::path::{AsPath, Path, PathBuf};
 use std::sync::{mpsc, Arc, RwLock};
 use std::thread::{Thread, JoinGuard};
+use std::collections::HashMap;
 use std::option::Option;
-//use std::marker::Send;
+use std::marker::Send;
 
 use fsnotify::*;
+use helpers::*;
 
 mod ffi;
 use self::ffi::*;
@@ -33,8 +34,11 @@ enum Instruction {
 	Watch( PathBuf ),
 	Unwatch( PathBuf ),
 }
-type InsTx		= mpsc::Sender<Instruction>;
-type InsRx		= mpsc::Receiver<Instruction>;
+
+use self::Instruction::*;
+
+type InsTx = mpsc::Sender<Instruction>;
+type InsRx = mpsc::Receiver<Instruction>;
 
 //================================================================================
 // Actual struct:
@@ -52,7 +56,7 @@ pub struct WinFsNotifier<'a> {
 	ins_tx:		InsTx,
 
 	// Handle to completion port:
-//	port:		HANDLE,
+	port:		HANDLE,
 
 //	paths:	Arc<RwLock<HashMap<HANDLE, PathBuf>>>,
 }
@@ -68,24 +72,43 @@ impl<'a> WinFsNotifier<'a> {
 		self.join_guard = Some(
 			Thread::scoped( move || {
 			loop {
+				let mut close: bool = false;
+
 				match ins_rx.try_recv() {
-					Err( err ) => {
+					Err( mpsc::TryRecvError::Disconnected ) => {
 						// Disconnected? Will be impossible to recieve Quit, so we must close.
-						if err == mpsc::TryRecvError::Disconnected {
-					//		self.is_closed = false;
-							return
-						}
+						close = true;
+						self.is_closed = true;
 					},
-					// Bail! This is the main exit point, write to open to close.
-					Ok( Instruction::Close ) => return,
-					Ok( Instruction::Watch( path ) ) => (),
-					Ok( Instruction::Unwatch( path ) ) => (),
+					Ok( Close ) => {
+						// Bail! This is the main exit point, write to open to close.
+						close = true;
+					},
+					Ok( Watch( path ) ) => {
+						WinFsNotifier::add_watch();
+					},
+					Ok( Unwatch( path ) ) => {
+						WinFsNotifier::rem_watch();
+					},
+					_ => {}
+				}
+
+				if close {
+
 				}
 
 				// Are we using recursion?
 				//let recurse = self.config.is_recursive() as BOOL;
 			}
 		} ) );
+	}
+
+	fn add_watch() {
+
+	}
+
+	fn rem_watch() {
+
 	}
 
 	/**
@@ -96,6 +119,14 @@ impl<'a> WinFsNotifier<'a> {
 			Ok( true )	=> Ok( () ),
 			_			=> Err( Error::Closed )
 		}
+	}
+
+	/**
+	 * Sends instruction to thread loop.
+	 */
+	fn instruct( &self, ins: Instruction ) -> R {
+		try!( self.ins_tx.send( ins ) );
+		post_queued_completion_status( self.port )
 	}
 }
 
@@ -112,26 +143,24 @@ impl<'a> FsNotifier<'a> for WinFsNotifier<'a> {
 			join_guard:	None,
 			is_closed:	false,
 			ins_tx:		ins_tx,
-	//		port:		port,
+			port:		port,
 		//	paths:		Arc::new( RwLock::new( HashMap::new() ) ),
 		};
+
 		n.run( ins_rx );
 		Ok( n )
 	}
 
-	fn watch( &mut self, path: &AsPath ) -> R {
+	fn watch<P: AsPath + ?Sized>( &mut self, path: &P ) -> R {
+		// Send watch signal.
 		try!( self.enforce_open() );
-
-		// Add to queue, handle in start().
-	//	self.add_queue.push( path.to_path_buf() );
-
-		not_implemented!();
+		self.instruct( Watch( path_buf( path ) ) )
 	}
 
-	fn unwatch( &mut self, path: &AsPath ) -> R {
+	fn unwatch<P: AsPath + ?Sized>( &mut self, path: &P ) -> R {
+		// Send unwatch signal.
 		try!( self.enforce_open() );
-
-		not_implemented!();
+		self.instruct( Unwatch( path_buf( path ) ) )
 	}
 
 	fn close( &mut self ) -> R {
@@ -140,14 +169,14 @@ impl<'a> FsNotifier<'a> for WinFsNotifier<'a> {
 		// Consider us closed, don't want this called again.
 		self.is_closed = true;
 
-		// Send Close signal and block/join.
-		try!( self.ins_tx.send( Instruction::Close ) );
+		// Send Close signal.
+		try!( self.instruct( Close ) );
 
-		if let Some( jg ) = self.join_guard {
-			return Ok( try!( jg.join() ) )
-		}
-
-		return Ok( () );
+		// Block/Join until thread terminates.
+		return Ok( match self.join_guard.take() {
+			Some( jg )	=> try!( jg.join() ),
+			None		=> ()
+		} );
 	}
 
 	fn is_closed( &self ) -> NotifyResult<bool> {

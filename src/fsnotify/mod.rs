@@ -3,6 +3,7 @@ use std::error::FromError;
 use std::ops::Fn;
 use std::io;
 use std::any::Any;
+use std::marker::Sized;
 use std::path::{
 	PathBuf,
 	AsPath,
@@ -15,7 +16,7 @@ use std::sync::{
 };
 
 //================================================================================
-// Error:
+// Error handling:
 //================================================================================
 
 /**
@@ -45,7 +46,7 @@ impl<T> FromError<mpsc::SendError<T>> for Error {
 	}
 }
 
-impl<> FromError<Box<Any + Send>> for Error {
+impl FromError<Box<Any + Send>> for Error {
 	fn from_error( from: Box<Any + Send> ) -> Error {
 		Error::ThreadPanic
 	}
@@ -90,7 +91,6 @@ pub type R = NotifyResult<()>;
  */
 type RF<'a> = Fn( &AsPath ) -> bool + 'a;
 pub type RecursionFilter<'a> = Option<&'a (RF<'a>)>;
-//unsafe impl<'a> Send for RecursionFilter<'a> {}
 
 /**
  * `RecursionLimit` denoted what the maximum recursion depth is starting
@@ -142,6 +142,9 @@ impl<'a> Default for Configuration<'a> {
 	}
 }
 
+//unsafe impl<'a> Send for RF<'a> {}
+//unsafe impl<'a> Send for Configuration<'a> {}
+
 //================================================================================
 // Events:
 //================================================================================
@@ -189,24 +192,23 @@ pub trait FsNotifier<'a> : Drop {
 	 * The config: `Configuration` contains configuration information.
 	 *
 	 * This spawns a new thread that the notifier runs in.
+	 * The thread should not be considerered as detached.
 	 */
 	fn new( sender: EventSender, config: Configuration<'a> ) -> NotifyResult<Self>;
 
 	/**
 	 * Adds a path to track to the notifier.
-	 * This can be done after calling `start()`.
 	 *
 	 * Returned is a `R`, that indicates either failure or success.
 	 */
-	fn watch( &mut self, path: &AsPath ) -> R;
+	fn watch<P: AsPath + ?Sized>( &mut self, path: &P ) -> R;
 
 	/**
 	 * Tells the notifier to stop tracking a path.
-	 * This can be done after calling `start()`.
 	 *
 	 * Returned is a `R`, that indicates either failure or success.
 	 */
-	fn unwatch( &mut self, path: &AsPath ) -> R;
+	fn unwatch<P: AsPath + ?Sized>( &mut self, path: &P ) -> R;
 
 	/**
 	 * Tells the notifier to stop the tracking.
