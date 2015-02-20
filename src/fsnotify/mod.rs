@@ -74,6 +74,11 @@ impl<'a, T> FromError<PoisonError<RwLockWriteGuard<'a, T>>> for Error {
 pub type NotifyResult<T> = Result<T, Error>;
 
 /**
+ * The `Result` of an `Event`, either being the `Event`, or an `Error`.
+ */
+pub type EventResult = NotifyResult<Event>;
+
+/**
  * `R = NotifyResult<()`
  * Indicates either success or failure of an operation.
  */
@@ -83,14 +88,17 @@ pub type R = NotifyResult<()>;
 // Configuration:
 //================================================================================
 
+type RFCallback = Fn( &AsPath ) -> bool + Send;
+
 /**
  * `RecursionFilter`, a predicate function that, when recursion is enabled,
  * tells the `FsNotifier` if it should subscribe to a sub-directory.
  *
  * If the value returned is true, it will subscribe, otherwise, it will not.
+ *
+ * It is optional to provide such a filter.
  */
-type RF<'a> = Fn( &AsPath ) -> bool + 'a;
-pub type RecursionFilter<'a> = Option<&'a (RF<'a>)>;
+pub type RecursionFilter = Option<Box<RFCallback>>;
 
 /**
  * `RecursionLimit` denoted what the maximum recursion depth is starting
@@ -115,14 +123,14 @@ pub type RecursionLimit = Option<usize>;
  * + `recursion_filter`: see `RecursionFilter`.
  * 		Default is to not filter anything.
  */
-pub struct Configuration<'a> {
+pub struct Configuration {
 	subscribe:			Operations,
 	follow_symlinks:	bool,
 	recursion_limit:	RecursionLimit,
-	recursion_filter:	RecursionFilter<'a>,
+	recursion_filter:	RecursionFilter,
 }
 
-impl<'a> Configuration<'a> {
+impl Configuration {
 	pub fn is_recursive( &self ) -> bool {
 		match self.recursion_limit {
 			None => true,
@@ -131,8 +139,8 @@ impl<'a> Configuration<'a> {
 	}
 }
 
-impl<'a> Default for Configuration<'a> {
-	fn default() -> Configuration<'a> {
+impl Default for Configuration {
+	fn default() -> Configuration {
 		Configuration {
 			subscribe:			Operations::all(),
 			follow_symlinks:	true,
@@ -141,9 +149,6 @@ impl<'a> Default for Configuration<'a> {
 		}
 	}
 }
-
-//unsafe impl<'a> Send for RF<'a> {}
-//unsafe impl<'a> Send for Configuration<'a> {}
 
 //================================================================================
 // Events:
@@ -157,14 +162,20 @@ use self::operations::Operations;
  * It has information about the path that the operations that happened on it.
  */
 pub struct Event {
-	pub path: Option<PathBuf>,
-	pub op: NotifyResult<Operations>,
+	pub path:	Option<PathBuf>,
+	pub op:		Operations,
+}
+
+impl Event {
+	fn new( path: Option<PathBuf>, op: Operations ) -> Self {
+		Event { path: path, op: op }
+	}
 }
 
 /**
  * `EventSender`, a `Sender` for an `Event`.
  */
-pub type EventSender = mpsc::Sender<Event>;
+pub type EventSender = mpsc::Sender<EventResult>;
 
 //================================================================================
 // Notifier trait:
@@ -184,7 +195,7 @@ pub type EventSender = mpsc::Sender<Event>;
  * Thus, all methods except for `FsNotifier::new` return a `R = Result<(), Error>`
  * indicating either success or failure.
  */
-pub trait FsNotifier<'a> : Drop {
+pub trait FsNotifier : Drop {
 	/**
 	 * Constructs a `FsNotifier`.
 	 *
@@ -194,7 +205,7 @@ pub trait FsNotifier<'a> : Drop {
 	 * This spawns a new thread that the notifier runs in.
 	 * The thread should not be considerered as detached.
 	 */
-	fn new( sender: EventSender, config: Configuration<'a> ) -> NotifyResult<Self>;
+	fn new( sender: EventSender, config: Configuration ) -> NotifyResult<Self>;
 
 	/**
 	 * Adds a path to track to the notifier.

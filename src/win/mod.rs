@@ -41,113 +41,65 @@ type InsTx = mpsc::Sender<Instruction>;
 type InsRx = mpsc::Receiver<Instruction>;
 
 //================================================================================
-// Actual struct:
+// The struct:
 //================================================================================
 
 pub struct WinFsNotifier<'a> {
-	config:		Configuration<'a>,
-	event_tx:	EventSender,
-	join_guard: Option<JoinGuard<'a, ()>>,
-
-	// Indicates if the notifier is closed or not.
+	/// Indicates if the notifier is closed or not.
 	is_closed:	bool,
 
-	// Close/Watch/Unwatch instruction channel.
+	/// Join guard, this is held until Drop.
+	join_guard:	Option<JoinGuard<'a, ()>>,
+
+	/// Close/Watch/Unwatch instruction TX.
 	ins_tx:		InsTx,
 
-	// Handle to completion port:
-	port:		HANDLE,
-
-//	paths:	Arc<RwLock<HashMap<HANDLE, PathBuf>>>,
+	/// Handle to completion port:
+	port:		Arc<HANDLE>,
 }
 
 fsn_drop!(	WinFsNotifier );
 
-impl<'a> WinFsNotifier<'a> {
-	fn run( &mut self, ins_rx: InsRx ) {
-		// Clone stuff.
-		let event_tx = self.event_tx.clone();
+//================================================================================
+// Implementation:
+//================================================================================
 
-		// Run notifier in thread.
-		self.join_guard = Some(
-			Thread::scoped( move || {
-			loop {
-				let mut close: bool = false;
+struct ThreadState<'a> {
+	/// The configuration.
+	config:		Configuration,
 
-				match ins_rx.try_recv() {
-					Err( mpsc::TryRecvError::Disconnected ) => {
-						// Disconnected? Will be impossible to recieve Quit, so we must close.
-						close = true;
-						self.is_closed = true;
-					},
-					Ok( Close ) => {
-						// Bail! This is the main exit point, write to open to close.
-						close = true;
-					},
-					Ok( Watch( path ) ) => {
-						WinFsNotifier::add_watch();
-					},
-					Ok( Unwatch( path ) ) => {
-						WinFsNotifier::rem_watch();
-					},
-					_ => {}
-				}
+	/// Event notification TX.
+	event_tx:	EventSender,
 
-				if close {
+	/// Close/Watch/Unwatch instruction RX.
+	ins_rx:		InsRx,
 
-				}
-
-				// Are we using recursion?
-				//let recurse = self.config.is_recursive() as BOOL;
-			}
-		} ) );
-	}
-
-	fn add_watch() {
-
-	}
-
-	fn rem_watch() {
-
-	}
-
-	/**
-	 * Returns `Ok` only if open.
-	 */
-	fn enforce_open( &self ) -> R {
-		return match self.is_closed() {
-			Ok( true )	=> Ok( () ),
-			_			=> Err( Error::Closed )
-		}
-	}
-
-	/**
-	 * Sends instruction to thread loop.
-	 */
-	fn instruct( &self, ins: Instruction ) -> R {
-		try!( self.ins_tx.send( ins ) );
-		post_queued_completion_status( self.port )
-	}
+	/// Maps file Handle -> Path.
+	paths:		HashMap<HANDLE, PathBuf>,
 }
 
-impl<'a> FsNotifier<'a> for WinFsNotifier<'a> {
-	fn new( event_tx: EventSender, config: Configuration<'a> ) -> NotifyResult<Self> {
-		// Retrieve IOCP.
-		let port = try!( create_io_completion_port( INVALID_HANDLE_VALUE, 0 as HANDLE ) );
-
+impl<'a> FsNotifier for WinFsNotifier<'a> {
+	fn new( event_tx: EventSender, config: Configuration ) -> NotifyResult<Self> {
 		let (ins_tx, ins_rx) = mpsc::channel();
 
+		// Retrieve IOCP.
+		let port = try!( create_io_completion_port( INVALID_HANDLE, NULL_HANDLE ) );
+
 		let mut n = WinFsNotifier {
-			config:		config,
-			event_tx:	event_tx,
 			join_guard:	None,
 			is_closed:	false,
 			ins_tx:		ins_tx,
-			port:		port,
-		//	paths:		Arc::new( RwLock::new( HashMap::new() ) ),
+			port:		Arc::new( port ),
 		};
 
-		n.run( ins_rx );
+		// Start thread.
+		n.run( ThreadState {
+			config:		config,
+			event_tx:	event_tx,
+			ins_rx:		ins_rx,
+			paths:		HashMap::new(),
+		} );
+
 		Ok( n )
 	}
 
@@ -181,5 +133,75 @@ impl<'a> FsNotifier<'a> for WinFsNotifier<'a> {
 
 	fn is_closed( &self ) -> NotifyResult<bool> {
 		Ok( self.is_closed )
+	}
+}
+
+impl<'a> WinFsNotifier<'a> {
+	/**
+	 * Sends instruction to thread loop.
+	 * Called in client thread.
+	 */
+	fn instruct( &self, ins: Instruction ) -> R {
+		try!( self.ins_tx.send( ins ) );
+		post_queued_completion_status( &self.port )
+	}
+
+	/**
+	 * Returns `Ok` only if open.
+	 * Called in client thread.
+	 */
+	fn enforce_open( &self ) -> R {
+		return match self.is_closed() {
+			Ok( true )	=> Ok( () ),
+			_			=> Err( Error::Closed )
+		}
+	}
+
+	fn run( &mut self, ts: ThreadState ) {
+		// Clone Arc:s.
+		let (is_closed, port) = (
+			self.is_closed.clone(),
+			self.port.clone()
+		);
+
+		// Run notifier in thread.
+		self.join_guard = Some( Thread::scoped( move || {
+			loop {
+				let (r, n, ov) = get_queued_completion_status( &port );
+
+				if let Some( watch ) = ov {
+					// Got an event, handle it:
+					if let Err( Error::Io( e ) ) = r {
+
+					}
+				} else {
+					// No event, handle an instruction:
+					match ts.ins_rx.try_recv() {
+						Err( mpsc::TryRecvError::Disconnected ) => {
+							unreachable!();
+						},
+						Ok( Close ) => {
+							// Close all file handles.
+						},
+						Ok( Watch( path ) ) => {
+							WinFsNotifier::add_watch();
+						},
+						Ok( Unwatch( path ) ) => {
+							WinFsNotifier::rem_watch();
+						},
+						_ => {}
+					}
+				}
+
+				// Are we using recursion?
+				//let recurse = self.config.is_recursive() as BOOL;
+			}
+		} ) );
+	}
+
+	fn add_watch() {
+	}
+
+	fn rem_watch() {
 	}
 }

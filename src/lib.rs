@@ -53,6 +53,6 @@ pub type RecommendedNotifier<'a> = win::WinFsNotifier<'a>;
 // generic interface:
 //================================================================================
 
-pub fn new<'a>( sender: EventSender, config: Configuration<'a> ) -> NotifyResult<RecommendedNotifier<'a>> {
+pub fn new<'a>( sender: EventSender, config: Configuration ) -> NotifyResult<RecommendedNotifier<'a>> {
 	FsNotifier::new( sender, config )
 }
