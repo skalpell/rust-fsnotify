@@ -1,5 +1,5 @@
 extern crate fsevent;
-extern crate "fsevent-sys" as fsvent_fys;
+extern crate fsevent_sys;
 use fsevent;
 
 use std::path::{AsPath, Path, PathBuf};

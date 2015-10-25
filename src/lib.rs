@@ -2,19 +2,10 @@
 #![crate_name = "fsnotify"]
 
 // @TODO remove!
-#![allow(dead_code, unused_imports, unused_variables)]
+#![allow(dead_code, unused_variables)]
 
-#![feature(io, path)]
-
-// Required by windows encode_wide().
-#![feature(std_misc)]
-
-// for Send, RFC 458:
-#![feature(core)]
-
-// Required by operations.rs
-#![feature(hash)]
-#[macro_use] extern crate bitflags;
+#[macro_use]
+extern crate bitflags;
 
 //================================================================================
 // helpers and macros:
@@ -47,12 +38,12 @@ pub type RecommendedNotifier<'a> = osx::OsxFsNotifier<'a>;
 #[cfg(target_os="windows")]
 pub mod win;
 #[cfg(target_os="windows")]
-pub type RecommendedNotifier<'a> = win::WinFsNotifier<'a>;
+pub type RecommendedNotifier = win::WinFsNotifier;
 
 //================================================================================
 // generic interface:
 //================================================================================
 
-pub fn new<'a>( sender: EventSender, config: Configuration ) -> NotifyResult<RecommendedNotifier<'a>> {
+pub fn new( sender: EventSender, config: Configuration ) -> NotifyResult<RecommendedNotifier> {
 	FsNotifier::new( sender, config )
 }

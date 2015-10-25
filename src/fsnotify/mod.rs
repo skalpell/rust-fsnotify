@@ -1,12 +1,12 @@
 use std::default::Default;
-use std::error::FromError;
+use std::convert::From;
 use std::ops::Fn;
 use std::io;
 use std::any::Any;
 use std::marker::Sized;
 use std::path::{
+	Path,
 	PathBuf,
-	AsPath,
 };
 use std::sync::{
 	mpsc,
@@ -26,43 +26,30 @@ pub enum Error {
 	Notify( String ),
 	Io( io::Error ),
 	Sending,
+	Receiving,
 	Closed,
 	LockWrite,
 	LockRead,
 	ThreadPanic,
 	PathInvalid,
+	PathNotWatched,
 	NotImplemented,
 }
 
-impl FromError<io::Error> for Error {
-	fn from_error( from: io::Error ) -> Error {
-		Error::Io( from )
+macro_rules! from_error {
+	( $fv: ident, [$($types: ident),*], $ft: ty, $exp: expr ) => {
+		impl<'a, $($types),*> From<$ft> for Error {
+			fn from( $fv: $ft ) -> Error { $exp }
+		}
 	}
 }
 
-impl<T> FromError<mpsc::SendError<T>> for Error {
-	fn from_error( from: mpsc::SendError<T> ) -> Error {
-		Error::Sending
-	}
-}
-
-impl FromError<Box<Any + Send>> for Error {
-	fn from_error( from: Box<Any + Send> ) -> Error {
-		Error::ThreadPanic
-	}
-}
-
-impl<'a, T> FromError<PoisonError<RwLockReadGuard<'a, T>>> for Error {
-	fn from_error( from: PoisonError<RwLockReadGuard<T>> ) -> Error {
-		Error::LockRead
-	}
-}
-
-impl<'a, T> FromError<PoisonError<RwLockWriteGuard<'a, T>>> for Error {
-	fn from_error( from: PoisonError<RwLockWriteGuard<T>> ) -> Error {
-		Error::LockWrite
-	}
-}
+from_error!( f, [ ], io::Error, Error::Io( f ) );
+from_error!( f, [ ], Box<Any + Send>, Error::ThreadPanic );
+from_error!( f, [ ], mpsc::RecvError, Error::Receiving );
+from_error!( f, [T], mpsc::SendError<T>, Error::Sending );
+from_error!( f, [T], PoisonError<RwLockReadGuard<'a, T>>, Error::LockRead );
+from_error!( f, [T], PoisonError<RwLockWriteGuard<'a, T>>, Error::LockWrite );
 
 //================================================================================
 // Misc typedefs:
@@ -88,7 +75,7 @@ pub type R = NotifyResult<()>;
 // Configuration:
 //================================================================================
 
-type RFCallback = Fn( &AsPath ) -> bool + Send;
+type RFCallback = Fn( &AsRef<Path> ) -> bool + Sync + Send;
 
 /**
  * `RecursionFilter`, a predicate function that, when recursion is enabled,
@@ -212,14 +199,14 @@ pub trait FsNotifier : Drop {
 	 *
 	 * Returned is a `R`, that indicates either failure or success.
 	 */
-	fn watch<P: AsPath + ?Sized>( &mut self, path: &P ) -> R;
+	fn watch<P: AsRef<Path> + ?Sized>( &mut self, path: &P ) -> R;
 
 	/**
 	 * Tells the notifier to stop tracking a path.
 	 *
 	 * Returned is a `R`, that indicates either failure or success.
 	 */
-	fn unwatch<P: AsPath + ?Sized>( &mut self, path: &P ) -> R;
+	fn unwatch<P: AsRef<Path> + ?Sized>( &mut self, path: &P ) -> R;
 
 	/**
 	 * Tells the notifier to stop the tracking.
